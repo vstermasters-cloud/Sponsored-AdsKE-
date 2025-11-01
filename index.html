@@ -1,444 +1,124 @@
-    <div class="card" id="graphCard">
-      <div class="card-header">AI Activity Flow — Updated Live</div>
-      <div class="card-body">
-        <div class="small">This chart shows activity across categories. Use it to spot where attention is highest.</div>
-        <div class="chart-wrap" style="margin-top:10px">
-          <canvas id="activityChart"></canvas>
-        </div>
-        <div class="small" id="graphNote">Auto-updates every 5-15 seconds. Data updates every 10 minutes.</div>
-      </div>
-    </div>
-
-    <!-- Top 10 trends -->
-    <div class="card" id="topTrendsCard">
-      <div class="card-header">🔥 Top Trends (Ranked)</div>
-      <div class="card-body">
-        <div class="small">Top trending posts — click to open in your preferred app and comment.</div>
-        <div id="topTrends" class="trends-grid" style="margin-top:10px">
-          <!-- shimmer placeholders -->
-          <div class="trend-card"><div class="shimmer tthumb" style="width:72px;height:52px"></div><div style="flex:1"><div class="shimmer" style="height:14px;width:70%"></div><div style="height:8px"></div><div class="shimmer" style="height:12px;width:50%"></div></div></div>
-          <div class="trend-card"><div class="shimmer tthumb" style="width:72px;height:52px"></div><div style="flex:1"><div class="shimmer" style="height:14px;width:60%"></div><div style="height:8px"></div><div class="shimmer" style="height:12px;width:40%"></div></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- All Categories Visible -->
-    <div id="categoriesContainer">
-      <!-- All categories will be populated here -->
-    </div>
-
-    <!-- Advertise box -->
-    <div class="card">
-      <div class="card-header">Advertise With Us</div>
-      <div class="card-body">
-        <div class="small">Want your business featured? Contact admin to arrange ad placement (manual review for quality).</div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button id="adBtn" style="flex:1;padding:10px;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--deep-purple));border:none;color:#fff;font-weight:700">Request Ad</button>
-          <button id="contactBtn" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:#fff">Contact Admin</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="height:120px"></div>
-  </div>
-
-  <!-- floating -->
-  <div class="float-share" id="shareBtn">Share</div>
-  <div class="float-wa" id="waBtn">WhatsApp</div>
-
-  <!-- modal -->
-  <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
-
-<script type="module">
-/*
-  Sponsored AdsKE — Optimized Version
-  - All categories visible (no "See More")
-  - Data stored in Firebase, updated every 10 minutes
-  - UI rotates content every 5-15 seconds
-  - Each category has its own AI predictions
-  - Users select app/website when clicking posts
-*/
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBOZaKuTUTAMgQ7wgA4dsMS6CGbXp-9Muo",
-  authDomain: "vster-69f85.firebaseapp.com",
-  databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
-  projectId: "vster-69f85",
-  storageBucket: "vster-69f85.appspot.com",
-  messagingSenderId: "475906173839",
-  appId: "1:475906173839:web:dac65e3a5402b5a31e7c2d"
-};
-
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-import { 
-  getDatabase, 
-  ref, 
-  get, 
-  onValue 
-} from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js';
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-/* UI elements */
-const topTrendsEl = document.getElementById('topTrends');
-const categoriesContainer = document.getElementById('categoriesContainer');
-const modalBackdrop = document.getElementById('modalBackdrop');
-const modalContent = document.getElementById('modalContent');
-const graphNote = document.getElementById('graphNote');
-const countrySelect = document.getElementById('countrySelect');
-const regionSelect = document.getElementById('regionSelect');
-
-/* All categories to display */
-const allCategories = [
-  'market', 'sports', 'weather', 'traffic', 'news',
-  'entertainment', 'technology', 'business', 'health', 'education'
-];
-
-/* helper: show/hide modal */
-function showModal(html){ 
-  modalContent.innerHTML = html; 
-  modalBackdrop.style.display='flex'; 
-}
-
-function hideModal(){ 
-  modalBackdrop.style.display='none'; 
-  modalContent.innerHTML=''; 
-}
-
-modalBackdrop.addEventListener('click', e => { 
-  if(e.target === modalBackdrop) hideModal(); 
-});
-
-/* small utilities */
-function toArray(obj){ 
-  if(!obj) return []; 
-  if(Array.isArray(obj)) return obj; 
-  return Object.keys(obj).map(k => Object.assign({_id: k}, obj[k])); 
-}
-
-function timeAgo(t){ 
-  try{ 
-    const d = new Date(typeof t === 'number' ? t : t); 
-    const diff = Math.floor((Date.now() - d.getTime())/60000); 
-    if(diff < 1) return 'just now'; 
-    if(diff < 60) return diff + 'm'; 
-    return Math.floor(diff/60) + 'h'; 
-  } catch(e) { return ''; } 
-}
-
-/* Content rotation system */
-const contentRotators = new Map();
-
-function startContentRotation(containerId, items, interval = 8000) {
-  if (!items || items.length === 0) return;
-  
-  let currentIndex = 0;
-  
-  // Clear existing rotator
-  if (contentRotators.has(containerId)) {
-    clearInterval(contentRotators.get(containerId));
-  }
-  
-  const rotator = setInterval(() => {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    currentIndex = (currentIndex + 1) % items.length;
-    const currentItem = items[currentIndex];
-    
-    // Update container with current item
-    if (containerId.includes('_list')) {
-      renderSinglePost(container, currentItem);
-    } else if (containerId.includes('_pred')) {
-      renderSinglePrediction(container, currentItem);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sponsored AdsKE | AddWave</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f9;
+      margin: 0;
+      padding: 0;
+      text-align: center;
     }
-  }, interval);
-  
-  contentRotators.set(containerId, rotator);
-}
-
-function renderSinglePost(container, post) {
-  container.innerHTML = '';
-  
-  const row = document.createElement('div'); 
-  row.className = 'post-card';
-  
-  const img = document.createElement('img'); 
-  img.className = 'post-thumb'; 
-  img.src = post.image || post.thumb || `https://via.placeholder.com/64x48/5A189A/white?text=📱`;
-  img.alt = post.title || 'Post';
-  
-  const meta = document.createElement('div'); 
-  meta.style.flex = '1';
-  
-  const t = document.createElement('div'); 
-  t.className = 'post-title'; 
-  t.textContent = post.title || post.text || post.tag || 'Trending Post';
-  
-  const s = document.createElement('div'); 
-  s.className = 'small'; 
-  s.style.marginTop = '6px'; 
-  s.textContent = (post.source || 'Social Media') + (post.timestamp ? ' • ' + timeAgo(post.timestamp) : '');
-  
-  meta.appendChild(t); 
-  meta.appendChild(s);
-  row.appendChild(img); 
-  row.appendChild(meta);
-  
-  row.addEventListener('click', () => onItemOpen(post));
-  container.appendChild(row);
-}
-
-function renderSinglePrediction(container, prediction) {
-  container.innerHTML = '';
-  
-  const predEl = document.createElement('div');
-  predEl.className = 'pred-box';
-  predEl.textContent = prediction;
-  container.appendChild(predEl);
-}
-
-/* --- Chart (Chart.js) --- */
-const ctx = document.getElementById('activityChart').getContext('2d');
-let points = Array.from({length: 28}, (_, i) => Math.round(40 + Math.sin(i/3)*8 + Math.random()*6));
-const activityChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: Array(points.length).fill(''),
-    datasets: [{
-      data: points,
-      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--deep-purple') || '#5A189A',
-      backgroundColor: 'rgba(90,24,154,0.06)',
-      tension: 0.45,
-      borderWidth: 3,
-      pointRadius: 0
-    }]
-  },
-  options: {
-    responsive: true,
-    animation: { duration: 700 },
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { display: true, grid: { display: true, color: 'rgba(0,0,0,0.05)', borderDash: [3,3] } },
-      y: { display: true, min: 0, max: 100, grid: { display: true, color: 'rgba(0,0,0,0.05)', borderDash: [3,3] } }
+    header {
+      background: #007bff;
+      color: white;
+      padding: 15px;
+      font-size: 20px;
     }
-  }
-});
-
-function advanceChart(){
-  const last = activityChart.data.datasets[0].data.slice(-1)[0] || 40;
-  const delta = Math.round((Math.random()-0.45)*6);
-  const next = Math.max(5, Math.min(95, last + delta + Math.round(Math.random()*3-1)));
-  activityChart.data.datasets[0].data.push(next);
-  activityChart.data.datasets[0].data.shift();
-  activityChart.update();
-}
-
-/* --- Data fetch functions --- */
-function dbRef(path){ return ref(db, path); }
-
-async function fetchNode(path){
-  try{
-    const snap = await get(dbRef(path));
-    return snap.exists() ? snap.val() : null;
-  } catch(e) { 
-    console.error('fetchNode', e); 
-    return null; 
-  }
-}
-
-/* Build all category cards */
-function buildAllCategories(){
-  categoriesContainer.innerHTML = '';
-  allCategories.forEach(cat => {
-    const id = 'cat_' + cat;
-    const html = `<div class="card cat-card" id="${id}">
-      <div class="card-header" style="text-transform:capitalize">${cat}</div>
-      <div class="card-body">
-        <div class="small">Latest trending posts in ${cat}</div>
-        <div id="${id}_list" class="cat-list" style="min-height:60px">
-          <div class="shimmer" style="height:48px;border-radius:8px"></div>
-        </div>
-        <div id="${id}_pred" class="pred-box">AI analyzing trends...</div>
-      </div>
-    </div>`;
-    categoriesContainer.insertAdjacentHTML('beforeend', html);
-  });
-}
-
-/* Render top trends */
-async function renderTopTrends(data){
-  const arr = toArray(data);
-  
-  // If no data, use sample data
-  const trends = arr.length > 0 ? arr.slice(0, 6) : await generateSampleTrends();
-  
-  topTrendsEl.innerHTML = '';
-  
-  trends.forEach(p => {
-    const el = document.createElement('div'); 
-    el.className = 'trend-card';
-    
-    const img = document.createElement('img'); 
-    img.className = 'tthumb'; 
-    img.src = p.image || p.thumb || 'https://via.placeholder.com/72x52/7C4DFF/white?text=📈';
-    img.alt = p.title || 'Trend';
-    
-    const meta = document.createElement('div'); 
-    meta.style.flex = '1';
-    
-    const title = document.createElement('div'); 
-    title.className = 'ttitle'; 
-    title.textContent = p.title || p.tag || 'Trending Now';
-    
-    const sm = document.createElement('div'); 
-    sm.className = 'tmeta'; 
-    sm.textContent = (p.source || 'Social Media') + (p.timestamp ? ' • ' + timeAgo(p.timestamp) : '');
-    
-    meta.appendChild(title); 
-    meta.appendChild(sm);
-    el.appendChild(img); 
-    el.appendChild(meta);
-    el.addEventListener('click', () => onItemOpen(p));
-    topTrendsEl.appendChild(el);
-  });
-}
-
-/* Load and rotate category data */
-async function loadCategoryData(cat, country = 'global'){
-  const node = country === 'global' ? `categories/${cat}/posts` : `countries/${country}/categories/${cat}/posts`;
-  const predsNode = country === 'global' ? `categories/${cat}/predictions` : `countries/${country}/categories/${cat}/predictions`;
-  
-  const postsData = await fetchNode(node);
-  const predsData = await fetchNode(predsNode);
-  
-  const posts = toArray(postsData);
-  const predictions = Array.isArray(predsData) ? predsData : [predsData || `AI predicts growth in ${cat} engagement`];
-  
-  // Use sample data if no Firebase data
-  const finalPosts = posts.length > 0 ? posts : await generateSampleCategoryPosts(cat);
-  const finalPredictions = predictions.length > 0 ? predictions : await generateSamplePredictions(cat);
-  
-  // Start rotation for this category
-  if (finalPosts.length > 0) {
-    const interval = 5000 + Math.random() * 10000; // 5-15 seconds
-    startContentRotation(`cat_${cat}_list`, finalPosts, interval);
-  }
-  
-  if (finalPredictions.length > 0) {
-    const predInterval = 8000 + Math.random() * 12000; // 8-20 seconds
-    startContentRotation(`cat_${cat}_pred`, finalPredictions, predInterval);
-  }
-}
-
-/* Generate sample data */
-async function generateSampleTrends() {
-  return [
-    {
-      _id: "1",
-      title: "Kenya Economic Forum 2024 Live Updates",
-      source: "Twitter",
-      timestamp: Date.now() - 1000 * 60 * 15,
-      image: "https://via.placeholder.com/72x52/5A189A/white?text=KE",
-      links: {
-        twitter: "https://twitter.com/search?q=KenyaEconomicForum",
-        facebook: "https://facebook.com",
-        tiktok: "https://tiktok.com"
-      }
-    },
-    {
-      _id: "2", 
-      title: "New Music Releases This Week",
-      source: "YouTube",
-      timestamp: Date.now() - 1000 * 60 * 30,
-      image: "https://via.placeholder.com/72x52/7C4DFF/white?text=🎵",
-      links: {
-        youtube: "https://youtube.com",
-        instagram: "https://instagram.com"
-      }
+    #chart {
+      margin: 20px auto;
+      width: 90%;
+      height: 250px;
     }
-  ];
-}
+    .trend {
+      background: white;
+      border-radius: 12px;
+      padding: 10px;
+      margin: 10px auto;
+      max-width: 600px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: left;
+    }
+    .trend img {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      float: left;
+      margin-right: 10px;
+    }
+    .trend h3 {
+      margin: 0;
+      color: #333;
+    }
+    .trend a {
+      text-decoration: none;
+      color: #007bff;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>Sponsored AdsKE – AddWave Dashboard</header>
 
-async function generateSampleCategoryPosts(category) {
-  const samples = {
-    market: [
-      { 
-        title: "Stock Market Hits Record High", 
-        source: "Financial News", 
-        timestamp: Date.now() - 1000 * 60 * 10,
-        links: { twitter: "https://twitter.com", website: "https://example.com" }
+  <div id="chart">📈 Loading live trends...</div>
+
+  <section id="topTrends">
+    <h2>🔥 Top 10 Trends</h2>
+    <!-- trends will appear here -->
+  </section>
+
+  <script type="module">
+    // =======================
+    // 🔒 TEMPORARY PRIVATE KEYS (REMOVE BEFORE UPLOADING TO GITHUB)
+    // =======================
+    const API_KEYS = {
+      openai: "sk-proj-XJsJ1WuLDDbL1dLQMAz3P_jfipLGk7GvXY4KRqbaO1-ywG2m8UDMcRCdjgapT_-QKTfzGIXI0lT3BlbkFJnLt",
+      gemini: "AIR6x58rJoQCkUDf6sJf6D9_FdBFOtVoKdxzpgd8nR-tXzV-rcXiGTrTvV_7ILfGOplMJYAAIzaSyDMynxw4nnVwMIXz1gGeZawUhr2n6KzlY8",
+      weather: "80f9dda3b48137d03c879fbbc44178cb",
+      youtube: "AIzaSyBYbTFs2jD16VYHqsHNgoTTsRsPXMh_g4M",
+      newsapi: "pub_56b90ca05ef6490d9515e34d9eb1acf7"
+    };
+
+    // =======================
+    // 🔥 FAKE DEMO TRENDS (You’ll replace this with Firebase pull)
+    // =======================
+    const demoTrends = [
+      {
+        title: "Tanzania Flood Updates",
+        img: "https://via.placeholder.com/60",
+        url: "https://twitter.com",
+        source: "Twitter Live Feed"
       },
-      { 
-        title: "Currency Exchange Rates Update", 
-        source: "Forex", 
-        timestamp: Date.now() - 1000 * 60 * 25,
-        links: { twitter: "https://twitter.com", app: "https://example.com" }
-      }
-    ],
-    sports: [
-      { 
-        title: "Premier League Final Results", 
-        source: "Sports Center", 
-        timestamp: Date.now() - 1000 * 60 * 5,
-        links: { twitter: "https://twitter.com", facebook: "https://facebook.com" }
+      {
+        title: "Nairobi Stock Market Rising",
+        img: "https://via.placeholder.com/60",
+        url: "https://www.bloomberg.com",
+        source: "Bloomberg"
       },
-      { 
-        title: "Local Tournament Highlights", 
-        source: "Kenya Sports", 
-        timestamp: Date.now() - 1000 * 60 * 40,
-        links: { instagram: "https://instagram.com", tiktok: "https://tiktok.com" }
+      {
+        title: "AFCON 2025 Fixtures Released",
+        img: "https://via.placeholder.com/60",
+        url: "https://www.fifa.com",
+        source: "Sports API"
       }
-    ],
-    weather: [
-      { 
-        title: "Weekly Weather Forecast", 
-        source: "Met Department", 
-        timestamp: Date.now() - 1000 * 60 * 8,
-        links: { website: "https://weather.com", twitter: "https://twitter.com" }
-      }
-    ]
-  };
-  
-  return samples[category] || [
-    { 
-      title: `${category.charAt(0).toUpperCase() + category.slice(1)} Update`, 
-      source: "News", 
-      timestamp: Date.now() - 1000 * 60 * 15,
-      links: { twitter: "https://twitter.com", facebook: "https://facebook.com" }
-    }
-  ];
-}
+    ];
 
-async function generateSamplePredictions(category) {
-  const predictions = {
-    market: [
-      "Market expected to rise 5% in next 24 hours",
-      "Trading volume increasing steadily",
-      "New investment opportunities emerging"
-    ],
-    sports: [
-      "Local teams showing strong performance",
-      "Fan engagement at all-time high",
-      "Sports betting trends shifting"
-    ],
-    weather: [
-      "Clear skies expected for weekend",
-      "Temperature variations ahead",
-      "Perfect conditions for outdoor events"
-    ]
-  };
-  
-  return predictions[category] || [
-    `Growing interest in ${category} content`,
-    `Engagement peaks expected soon`,
-    `New trends emerging in this category`
-  ];
-}
+    const trendsDiv = document.getElementById("topTrends");
 
-/* Open item: show app selection modal */
-function onItemOpen(item){
-  const links = item.links || item.urls || item.platformLinks || {
-    twitter: "https://twitter.com",
-    facebook
+    // Render sample data
+    demoTrends.forEach(trend => {
+      const div = document.createElement("div");
+      div.className = "trend";
+      div.innerHTML = `
+        <img src="${trend.img}" alt="">
+        <h3>${trend.title}</h3>
+        <p>Source: ${trend.source}</p>
+        <a href="${trend.url}" target="_blank">View More</a>
+      `;
+      trendsDiv.appendChild(div);
+    });
+
+    // Simulate auto-updating graph text
+    const chartDiv = document.getElementById("chart");
+    const messages = ["🌍 Analyzing trends...", "📊 Fetching new data...", "🔥 Updating live insights..."];
+    let i = 0;
+    setInterval(() => {
+      chartDiv.textContent = messages[i % messages.length];
+      i++;
+    }, 4000);
+  </script>
+</body>
+</html>
