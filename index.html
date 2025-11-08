@@ -1,124 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sponsored AdsKE | AddWave</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📩 TumaSMS Sandbox Mobile</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f3f5f9;
+      font-family: Poppins, sans-serif;
+      background: #f5f6fa;
+      padding: 20px;
       margin: 0;
-      padding: 0;
-      text-align: center;
     }
-    header {
-      background: #007bff;
-      color: white;
-      padding: 15px;
+    .container {
+      max-width: 100%;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #2d3436;
       font-size: 20px;
     }
-    #chart {
-      margin: 20px auto;
-      width: 90%;
-      height: 250px;
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      box-sizing: border-box;
     }
-    .trend {
-      background: white;
-      border-radius: 12px;
-      padding: 10px;
-      margin: 10px auto;
-      max-width: 600px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      text-align: left;
+    button {
+      background: #0984e3;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 15px;
     }
-    .trend img {
-      width: 60px;
-      height: 60px;
-      border-radius: 10px;
-      float: left;
-      margin-right: 10px;
+    button:hover {
+      background: #74b9ff;
     }
-    .trend h3 {
-      margin: 0;
-      color: #333;
-    }
-    .trend a {
-      text-decoration: none;
-      color: #007bff;
-      font-weight: bold;
+    .status {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
-  <header>Sponsored AdsKE – AddWave Dashboard</header>
+  <div class="container">
+    <h2>📩 TumaSMS Sandbox Mobile</h2>
+    <input type="text" id="sender" placeholder="Sender Name (e.g. TumaSMS Alerts)" value="TumaSMS Alerts" />
+    <input type="text" id="phone" placeholder="Simulator number e.g. +254700123456" />
+    <textarea id="message" placeholder="Write your message here..." rows="4"></textarea>
+    <button onclick="sendSMS()">Send SMS</button>
+    <div class="status" id="status"></div>
+  </div>
 
-  <div id="chart">📈 Loading live trends...</div>
+  <script>
+    async function sendSMS() {
+      const sender = document.getElementById("sender").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const message = document.getElementById("message").value.trim();
+      const status = document.getElementById("status");
 
-  <section id="topTrends">
-    <h2>🔥 Top 10 Trends</h2>
-    <!-- trends will appear here -->
-  </section>
-
-  <script type="module">
-    // =======================
-    // 🔒 TEMPORARY PRIVATE KEYS (REMOVE BEFORE UPLOADING TO GITHUB)
-    // =======================
-    const API_KEYS = {
-      openai: "sk-proj-XJsJ1WuLDDbL1dLQMAz3P_jfipLGk7GvXY4KRqbaO1-ywG2m8UDMcRCdjgapT_-QKTfzGIXI0lT3BlbkFJnLt",
-      gemini: "AIR6x58rJoQCkUDf6sJf6D9_FdBFOtVoKdxzpgd8nR-tXzV-rcXiGTrTvV_7ILfGOplMJYAAIzaSyDMynxw4nnVwMIXz1gGeZawUhr2n6KzlY8",
-      weather: "80f9dda3b48137d03c879fbbc44178cb",
-      youtube: "AIzaSyBYbTFs2jD16VYHqsHNgoTTsRsPXMh_g4M",
-      newsapi: "pub_56b90ca05ef6490d9515e34d9eb1acf7"
-    };
-
-    // =======================
-    // 🔥 FAKE DEMO TRENDS (You’ll replace this with Firebase pull)
-    // =======================
-    const demoTrends = [
-      {
-        title: "Tanzania Flood Updates",
-        img: "https://via.placeholder.com/60",
-        url: "https://twitter.com",
-        source: "Twitter Live Feed"
-      },
-      {
-        title: "Nairobi Stock Market Rising",
-        img: "https://via.placeholder.com/60",
-        url: "https://www.bloomberg.com",
-        source: "Bloomberg"
-      },
-      {
-        title: "AFCON 2025 Fixtures Released",
-        img: "https://via.placeholder.com/60",
-        url: "https://www.fifa.com",
-        source: "Sports API"
+      if (!sender || !phone || !message) {
+        status.innerHTML = "⚠️ Please fill all fields.";
+        status.style.color = "red";
+        return;
       }
-    ];
 
-    const trendsDiv = document.getElementById("topTrends");
+      status.innerHTML = "⏳ Sending...";
+      status.style.color = "#333";
 
-    // Render sample data
-    demoTrends.forEach(trend => {
-      const div = document.createElement("div");
-      div.className = "trend";
-      div.innerHTML = `
-        <img src="${trend.img}" alt="">
-        <h3>${trend.title}</h3>
-        <p>Source: ${trend.source}</p>
-        <a href="${trend.url}" target="_blank">View More</a>
-      `;
-      trendsDiv.appendChild(div);
-    });
+      const username = "sandbox";
+      const apiKey = "atsk_c77347bd9496594dd13d0e7aae4b0506f23c3c4d9b108770f9ef76246cf889a16eb0dcd4";
 
-    // Simulate auto-updating graph text
-    const chartDiv = document.getElementById("chart");
-    const messages = ["🌍 Analyzing trends...", "📊 Fetching new data...", "🔥 Updating live insights..."];
-    let i = 0;
-    setInterval(() => {
-      chartDiv.textContent = messages[i % messages.length];
-      i++;
-    }, 4000);
+      try {
+        const response = await fetch("https://api.sandbox.africastalking.com/version1/messaging", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "apiKey": apiKey,
+            "Accept": "application/json"
+          },
+          body: new URLSearchParams({
+            username: username,
+            to: phone,
+            message: message,
+            from: sender
+          })
+        });
+
+        const data = await response.json();
+        console.log(data);
+
+        if (data.SMSMessageData && data.SMSMessageData.Recipients.length > 0) {
+          status.innerHTML = "✅ Message sent! Check simulator.";
+          status.style.color = "green";
+        } else {
+          status.innerHTML = "❌ Failed. Check console for details.";
+          status.style.color = "red";
+        }
+      } catch (error) {
+        console.error(error);
+        status.innerHTML = "❌ Error sending SMS.";
+        status.style.color = "red";
+      }
+    }
   </script>
 </body>
 </html>
