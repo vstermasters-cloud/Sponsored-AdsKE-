@@ -80,7 +80,11 @@
       const apiKey = "atsk_c77347bd9496594dd13d0e7aae4b0506f23c3c4d9b108770f9ef76246cf889a16eb0dcd4";
 
       try {
-        const response = await fetch("https://api.sandbox.africastalking.com/version1/messaging", {
+        // Use a proxy to bypass CORS restrictions
+        const proxyUrl = "https://api.allorigins.win/raw?url=";
+        const targetUrl = encodeURIComponent("https://api.sandbox.africastalking.com/version1/messaging");
+
+        const response = await fetch(proxyUrl + targetUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
